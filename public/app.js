@@ -1,10 +1,10 @@
 import {validItems as valid, normalizeState as normalize, snapshotState as snapshot, applyLocalOperation, nextGeneration, TOWERS as towers} from './register-model.mjs?v=6';
-import {GitHubStore, projectSession as githubSession, parseProjectLink, makeProjectLink} from './github-storage.mjs?v=2';
 (()=>{
   'use strict';
   const KEY='stair-floor-register:v2';
-  let githubToken='';
-  const github=new GitHubStore({token:()=>githubToken});
+  const apiOrigin=document.querySelector('meta[name="register-api-origin"]')?.content||location.origin;
+  const apiUrl=path=>new URL(path,apiOrigin).href;
+  const apiCredentials=apiOrigin===location.origin?'same-origin':'omit';
   const LEGACY_KEY='stair-floor-register:v1';
   const $=id=>document.getElementById(id);
   const list=$('stairs');
@@ -18,8 +18,8 @@ import {GitHubStore, projectSession as githubSession, parseProjectLink, makeProj
   const parse=raw=>{try{return JSON.parse(raw);}catch{return null;}};
   let projectSession=null;
   let activateProjectAfterConnect=false;
-  try{projectSession=parse(sessionStorage.getItem('register-github-active-project')||localStorage.getItem('register-github-active-project'));if(projectSession&&!validSession(projectSession))projectSession=null;}catch{}
-  if(location.hash.includes('storage=github')){try{projectSession=readProjectLink(location.href);activateProjectAfterConnect=true;history.replaceState(null,'',location.pathname+location.search);}catch{}}
+  try{projectSession=parse(sessionStorage.getItem('register-active-project')||localStorage.getItem('register-active-project'));if(projectSession&&!validSession(projectSession))projectSession=null;}catch{}
+  if(location.hash.includes('project=')){try{projectSession=readProjectLink(location.href);activateProjectAfterConnect=true;history.replaceState(null,'',location.pathname+location.search);}catch{}}
   let state=normalize({stairs:fresh(),lifts:fresh()});
   let storageAvailable=true;
   try{
@@ -30,15 +30,6 @@ import {GitHubStore, projectSession as githubSession, parseProjectLink, makeProj
       if(valid(legacy))state=normalize({stairs:legacy,lifts:fresh()});
     }
   }catch{storageAvailable=false;}
-  // Preserve the previous provider's cached records and pending edits without contacting it.
-  try{if(!projectSession&&!localStorage.getItem('register-github-recovered-v1')){
-    const old=parse(sessionStorage.getItem('register-active-project')||localStorage.getItem('register-active-project'));
-    const cached=old&&parse(localStorage.getItem('register-cloud-cache:project:'+old.id+':'+old.key));
-    if(cached?.data&&valid(cached.data.stairs)&&valid(cached.data.lifts)){
-      state=normalize(cached.data);for(const op of cached.pending||[])applyLocalOperation(state,op);
-      localStorage.setItem(KEY,JSON.stringify(state));localStorage.setItem('register-github-recovered-v1','yes');
-    }
-  }}catch{}
   let mode=state.mode;
   const filters={stairs:'all',lifts:'all'};
   let fireOnly=false;
@@ -51,10 +42,10 @@ import {GitHubStore, projectSession as githubSession, parseProjectLink, makeProj
   let legacySnapshot=snapshot(state);
   const meaningful=data=>data.stairs.length!==16||data.lifts.length!==16||data.deleted.stairs.length>0||data.deleted.lifts.length>0||[...data.stairs,...data.lifts].some(s=>s.f1||s.f2||s.fire||s.category||s.tower);
   const cloud={accountId:null,authenticated:false,pending:[],busy:false,error:false,loginRequired:false,importAvailable:false,role:projectSession?.role||null,project:null};
-  const cacheKey=id=>'register-github-cache:'+id;
+  const cacheKey=id=>'register-cloud-cache:'+id+(projectSession&&id.startsWith('project:')?':'+projectSession.key:'');
   const migratedKey=id=>'register-legacy-imported:'+id;
   try{
-    const lastAccount=projectSession?'github:'+projectSession.id:null;
+    const lastAccount=projectSession?'project:'+projectSession.id:null;
     const cached=lastAccount&&parse(localStorage.getItem(cacheKey(lastAccount)));
     if(cached&&cached.data&&valid(cached.data.stairs)&&valid(cached.data.lifts)&&Array.isArray(cached.pending)){
       cloud.accountId=lastAccount;cloud.pending=cached.pending;state=normalize({...cached.data,mode});
@@ -71,13 +62,12 @@ import {GitHubStore, projectSession as githubSession, parseProjectLink, makeProj
   function storageNotice(){
     const signed=cloud.authenticated;
     const pending=cloud.pending.length;
-    $('save-text').textContent=!ready?'正在連線…':signed&&!cloud.error?(pending?'正在同步…':'已同步到 GitHub'):cloud.accountId?(pending?'已暫存，待同步':'暫時離線'):(storageAvailable?'僅存此裝置':'暫未儲存');
+    $('save-text').textContent=!ready?'正在連線…':signed&&!cloud.error?(pending?'正在同步…':'已同步到雲端'):cloud.accountId?(pending?'已暫存，待同步':'暫時離線'):(storageAvailable?'僅存此裝置':'暫未儲存');
     document.querySelector('.save-dot').style.background=signed&&!cloud.error&&!pending?'#338878':'#b58c42';
     $('sync-panel').dataset.status=cloud.error?'error':'normal';
-    $('sync-title').textContent=!ready?'正在連接…':cloud.error?'暫時無法連接 GitHub':cloud.loginRequired&&projectSession?'請設定 GitHub 授權':cloud.project?cloud.project.name+(cloud.role==='view'?' · 唯讀':' · 可編輯'):signed?'舊版帳戶記錄':'GitHub 儲存與同步';
-    $('sync-detail').textContent=cloud.project?'記錄存於 GitHub 儲存庫，其他裝置需項目連結及自己的 GitHub 授權。':cloud.error?(cloud.message||'目前記錄已保留，連線後再同步。'):'先設定 GitHub 授權，再建立或加入項目。未連線時可在本機編輯及匯出。';
+    $('sync-title').textContent=!ready?'正在連接…':cloud.error?'暫時無法連接雲端':cloud.loginRequired&&projectSession?'項目連結無效，請重新加入':cloud.project?cloud.project.name+(cloud.role==='view'?' · 唯讀':' · 可編輯'):signed?'舊版帳戶記錄':'建立項目，開始多人同步';
+    $('sync-detail').textContent=cloud.project?'使用同一項目連結即可跨裝置同步，毋須註冊或登入。':cloud.error?'目前記錄已保留，連線後再同步。':'建立或加入共用項目。建立時可帶入目前畫面的記錄。';
     $('sign-in').hidden=true;
-    $('github-status').textContent=githubToken?'此頁面已設定授權':'尚未設定授權';
     $('project-share').hidden=!projectSession||!cloud.project;
     $('sync-now').hidden=!ready||!cloud.accountId;
     $('sync-now').disabled=cloud.busy;
@@ -98,7 +88,7 @@ import {GitHubStore, projectSession as githubSession, parseProjectLink, makeProj
   const newOperation=(type,kind,itemId,fields,generation)=>({opId:Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,'0')).join(''),type,kind,itemId,generation:generation??state[kind].find(item=>item.id===itemId)?.generation??Math.max(1,...state.deleted[kind].filter(item=>item.id===itemId).map(item=>item.generation)),...(fields?{fields}:{})});
   function enqueue(type,kind,itemId,fields,generation){
     if(cloud.accountId)cloud.pending.push(newOperation(type,kind,itemId,fields,generation));
-    save();clearTimeout(syncTimer);syncTimer=setTimeout(synchronize,1200);
+    save();clearTimeout(syncTimer);syncTimer=setTimeout(synchronize,200);
   }
   function overlay(data){
     const result=normalize({...data,mode});
@@ -106,8 +96,13 @@ import {GitHubStore, projectSession as githubSession, parseProjectLink, makeProj
     return result;
   }
   async function api(body){
-    if(!projectSession){const error=new Error('project_required');error.auth=true;throw error;}
-    return body?.action==='operations'?github.apply(projectSession,body.operations):github.read(projectSession);
+    const headers=projectSession?{Authorization:'Bearer '+projectSession.id+'.'+projectSession.key}:{};
+    if(body)headers['Content-Type']='application/json';
+    const response=await fetch(apiUrl('/api/register'),{method:body?'POST':'GET',headers,credentials:apiCredentials,cache:'no-store',signal:AbortSignal.timeout(12000),...(body?{body:JSON.stringify(body)}:{})});
+    if(response.status===401){const error=new Error('project_required');error.auth=true;throw error;}
+    if(response.status===403){editMode=false;cloud.role='view';render();const error=new Error('read_only');error.auth=true;throw error;}
+    if(!response.ok){const detail=await response.json().catch(()=>({}));const error=new Error('sync_failed');error.code=detail.error;error.opId=detail.opId;throw error;}
+    return response.json();
   }
   function loadAccount(accountId){
     if(cloud.accountId===accountId)return;
@@ -117,11 +112,12 @@ import {GitHubStore, projectSession as githubSession, parseProjectLink, makeProj
   function markMigrated(){try{localStorage.setItem(migratedKey(cloud.accountId),'yes');}catch{}cloud.importAvailable=false;}
   async function synchronize(){
     if(cloud.busy||document.visibilityState==='hidden')return;
+    if(!projectSession){ready=true;cloud.authenticated=false;cloud.error=false;cloud.project=null;storageNotice();update();return;}
     cloud.busy=true;storageNotice();
     try{
       let remote=await api();
       loadAccount(remote.accountId);cloud.authenticated=true;cloud.loginRequired=false;cloud.role=remote.role||'edit';cloud.project=remote.project||null;
-      if(projectSession){projectSession.role=cloud.role;projectSession.name=remote.project?.name||projectSession.name;rememberProject(activateProjectAfterConnect);activateProjectAfterConnect=false;}
+      if(projectSession){projectSession.role=cloud.role;projectSession.name=remote.project?.name||projectSession.name;if(remote.viewKey)projectSession.viewKey=remote.viewKey;rememberProject(activateProjectAfterConnect);activateProjectAfterConnect=false;}
       if(cloud.role==='view')editMode=false;
       if(!remote.initialized){remote=await api({action:'bootstrap',data:legacySnapshot});markMigrated();}
       else if(!projectSession){
@@ -137,12 +133,11 @@ import {GitHubStore, projectSession as githubSession, parseProjectLink, makeProj
       if(!remote.data||!valid(remote.data.stairs)||!valid(remote.data.lifts))throw new Error('invalid_sync_data');
       const next=cloud.role==='view'?normalize({...remote.data,mode}):overlay(remote.data);
       const changed=JSON.stringify(snapshot(next))!==JSON.stringify(snapshot(state));
-      state=next;cloud.error=false;cloud.message='';ready=true;
+      state=next;cloud.error=false;ready=true;
       if(changed)render();else update();save();
     }catch(error){
-      cloud.error=!error.auth;cloud.message=error.message==='project_required'?'':error.message;
-      if(error.message&&error.message!=='project_required')$('github-feedback').textContent=error.message;
-      if(error.code==='restore_conflict'&&error.opId){cloud.pending=cloud.pending.filter(op=>op.opId!==error.opId);cloud.error=false;save();toast('此編號已被使用，未有覆蓋現有記錄。');clearTimeout(syncTimer);syncTimer=setTimeout(synchronize,1200);}
+      cloud.error=!error.auth;
+      if(error.code==='restore_conflict'&&error.opId){cloud.pending=cloud.pending.filter(op=>op.opId!==error.opId);cloud.error=false;save();toast('此編號已被使用，未有覆蓋現有記錄。');clearTimeout(syncTimer);syncTimer=setTimeout(synchronize,200);}
       if(error.auth){cloud.authenticated=false;cloud.loginRequired=true;if(projectSession){cloud.role=null;editMode=false;}}
       ready=true;update();storageNotice();
     }finally{
@@ -334,12 +329,17 @@ import {GitHubStore, projectSession as githubSession, parseProjectLink, makeProj
     const incoming=parse(event.newValue);if(!incoming||!valid(incoming.stairs)||!valid(incoming.lifts))return;
     state=normalize(incoming);legacySnapshot=snapshot(state);render();storageAvailable=true;storageNotice();
   });
-  function validSession(value){try{return value?.provider==='github'&&githubSession(value.repo,value.branch,value.path,value.role).id===value.id;}catch{return false;}}
-  function readProjectLink(value){return parseProjectLink(value);}
-  function storedProjects(){try{return parse(localStorage.getItem('register-github-project-sessions'))||{};}catch{return {};}}
+  function validSession(value){return value&&/^[a-f0-9]{32}$/.test(value.id)&&/^[a-f0-9]{64}$/.test(value.key);}
+  function readProjectLink(value){
+    const text=value.trim();let session;
+    if(/^[a-f0-9]{32}\.[a-f0-9]{64}$/.test(text)){const [id,key]=text.split('.');session={id,key};}
+    else{const url=new URL(text,location.origin);if(!['http:','https:'].includes(url.protocol))throw new Error('invalid_link');const params=new URLSearchParams(url.hash.slice(1));session={id:params.get('project'),key:params.get('key')};}
+    if(!validSession(session))throw new Error('invalid_link');return session;
+  }
+  function storedProjects(){try{return parse(localStorage.getItem('register-project-sessions'))||{};}catch{return {};}}
   function rememberProject(makeActive=false){
     if(!projectSession||!cloud.project)return;
-    try{const saved=storedProjects();saved[projectSession.id+':'+cloud.role]={...projectSession,name:cloud.project.name,role:cloud.role};localStorage.setItem('register-github-project-sessions',JSON.stringify(saved));sessionStorage.setItem('register-github-active-project',JSON.stringify(projectSession));if(makeActive||!localStorage.getItem('register-github-active-project'))localStorage.setItem('register-github-active-project',JSON.stringify(projectSession));}catch{storageAvailable=false;}
+    try{const saved=storedProjects();saved[projectSession.id+':'+cloud.role]={...projectSession,name:cloud.project.name,role:cloud.role};localStorage.setItem('register-project-sessions',JSON.stringify(saved));sessionStorage.setItem('register-active-project',JSON.stringify(projectSession));if(makeActive||!localStorage.getItem('register-active-project'))localStorage.setItem('register-active-project',JSON.stringify(projectSession));}catch{storageAvailable=false;}
   }
   function refreshProjectList(){
     const select=$('saved-projects');select.replaceChildren(new Option('選擇項目…',''));
@@ -347,7 +347,7 @@ import {GitHubStore, projectSession as githubSession, parseProjectLink, makeProj
     $('saved-projects-wrap').hidden=select.options.length<2;
   }
   function adoptProject(session,remote){
-    save();projectSession={...session,role:remote.role,name:remote.project.name};
+    save();projectSession={...session,role:remote.role,name:remote.project.name,...(remote.viewKey?{viewKey:remote.viewKey}:{})};
     cloud.accountId=null;cloud.pending=[];cloud.project=remote.project;cloud.role=remote.role;cloud.authenticated=true;cloud.error=false;cloud.loginRequired=false;cloud.importAvailable=false;
     loadAccount(remote.accountId);state=cloud.role==='view'?normalize({...remote.data,mode}):overlay(remote.data);
     ready=true;editMode=false;towerFilter='all';filters.stairs='all';filters.lifts='all';fireOnly=false;$('tower-filter').value='all';
@@ -357,40 +357,32 @@ import {GitHubStore, projectSession as githubSession, parseProjectLink, makeProj
     if(cloud.busy){$('project-error').textContent='正在同步，請稍後再試。';return;}
     if(cloud.pending.length){$('project-error').textContent='還有修改待同步，請先完成同步後再切換項目。';return;}
     cloud.busy=true;$('project-error').textContent='';$('project-dialog').querySelectorAll('button[type="submit"],#open-saved-project').forEach(b=>b.disabled=true);
-    try{await work();}catch(error){$('project-error').textContent=error.message==='invalid_backup'?'備份格式不正確，請選擇由本工具匯出的 JSON。':error.message||'未能開啟項目，請檢查 GitHub 授權及網絡後再試。';}
+    try{await work();}catch(error){$('project-error').textContent=error.message==='invalid_link'?'分享連結格式不正確。':error.message==='invalid_backup'?'備份格式不正確，請選擇由本工具匯出的 JSON。':'未能開啟項目，請檢查連結及網絡後再試。';}
     finally{cloud.busy=false;$('project-dialog').querySelectorAll('button[type="submit"],#open-saved-project').forEach(b=>b.disabled=false);storageNotice();}
   }
   async function openProject(session){
-    const remote=await github.read(session);adoptProject(session,remote);
+    const response=await fetch(apiUrl('/api/register'),{headers:{Authorization:'Bearer '+session.id+'.'+session.key},cache:'no-store',credentials:apiCredentials,signal:AbortSignal.timeout(12000)});
+    if(!response.ok)throw new Error('invalid_link');const remote=await response.json();
+    if(!remote.initialized||!remote.project||!valid(remote.data?.stairs)||!valid(remote.data?.lifts))throw new Error('invalid_link');
+    adoptProject(session,remote);
   }
-  $('github-settings').addEventListener('click',()=>{$('github-feedback').textContent='';$('github-token').value='';$('github-dialog').showModal();});
-  $('github-form').addEventListener('submit',event=>{
-    event.preventDefault();const value=$('github-token').value.trim();if(value)githubToken=value;
-    $('github-token').value='';$('github-dialog').close();storageNotice();synchronize();
-  });
-  $('github-disconnect').addEventListener('click',()=>{githubToken='';$('github-token').value='';cloud.authenticated=false;cloud.loginRequired=true;$('github-feedback').textContent='已清除此頁面的授權，未同步修改仍保留在本機。';storageNotice();});
-  let githubProjects=[];
-  $('load-github-projects').addEventListener('click',()=>projectAction(async()=>{
-    githubProjects=await github.list($('github-repo').value.trim());
-    $('github-project-list').replaceChildren(...githubProjects.map((item,index)=>new Option(item.name,String(index))));
-    $('github-projects-wrap').hidden=!githubProjects.length;
-    if(!githubProjects.length)$('project-error').textContent='這個儲存庫尚未有項目，可在上方建立。';
-  }));
-  $('open-github-project').addEventListener('click',()=>{const item=githubProjects[Number($('github-project-list').value)];if(item)projectAction(()=>openProject(item.session));});
   $('project-manage').addEventListener('click',()=>{$('project-error').textContent='';refreshProjectList();$('project-dialog').showModal();});
   for(const button of document.querySelectorAll('[data-close]'))button.addEventListener('click',()=>$(button.dataset.close).close());
   $('create-project-form').addEventListener('submit',event=>{
     event.preventDefault();projectAction(async()=>{
       let data=$('project-seed').checked?snapshot(state):snapshot(normalize({stairs:fresh(),lifts:fresh()}));
       const file=$('project-backup').files[0];
-      if(file){if(file.size>1000000)throw new Error('invalid_backup');const backup=parse(await file.text());const value=backup?.data||backup;if(!value||!valid(value.stairs)||!valid(value.lifts))throw new Error('invalid_backup');data=snapshot(normalize(value));}
-      const repo=$('github-repo').value.trim();
-      const created=await github.create(repo,$('project-name').value,data);adoptProject(created.session,created.remote);
+      if(file){if(file.size>250000)throw new Error('invalid_backup');const backup=parse(await file.text());const value=backup?.data||backup;if(!value||!valid(value.stairs)||!valid(value.lifts))throw new Error('invalid_backup');data=snapshot(normalize(value));}
+      const response=await fetch(apiUrl('/api/projects'),{method:'POST',credentials:apiCredentials,headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('project-name').value,data}),signal:AbortSignal.timeout(15000)});
+      if(!response.ok)throw new Error('create_failed');const remote=await response.json();adoptProject({id:remote.project.id,key:remote.editKey,viewKey:remote.viewKey},remote);
     });
   });
   $('join-project-form').addEventListener('submit',event=>{event.preventDefault();projectAction(()=>openProject(readProjectLink($('project-link').value)));});
   $('open-saved-project').addEventListener('click',()=>{const session=storedProjects()[$('saved-projects').value];if(session)projectAction(()=>openProject(session));});
-  function shareLink(role){return makeProjectLink(projectSession,role,location.href);}
+  function shareLink(role){
+    const key=role==='edit'?projectSession.key:(projectSession.viewKey||projectSession.key);
+    return new URL('./',location.href).href+'#'+new URLSearchParams({project:projectSession.id,key}).toString();
+  }
   $('project-share').addEventListener('click',()=>{
     if(!projectSession||!cloud.project)return;
     $('share-title').textContent='分享：'+cloud.project.name;$('copy-edit').hidden=cloud.role!=='edit';$('share-feedback').textContent='';$('manual-share').hidden=true;$('manual-share').value='';$('share-dialog').showModal();
@@ -402,13 +394,13 @@ import {GitHubStore, projectSession as githubSession, parseProjectLink, makeProj
     catch{$('manual-share').value=link;$('manual-share').hidden=false;$('manual-share').select();$('share-feedback').textContent='請複製下方連結。';}
   });
   $('export-data').addEventListener('click',()=>{
-    const value={schemaVersion:3,name:cloud.project?.name||'樓梯及 Lift 記錄',exportedAt:new Date().toISOString(),data:snapshot(state)};
+    const value={schemaVersion:2,name:cloud.project?.name||'樓梯及 Lift 記錄',exportedAt:new Date().toISOString(),data:snapshot(state)};
     const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const anchor=document.createElement('a');anchor.href=url;anchor.download='stair-lift-register.json';anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   });
 
   try{const savedMode=localStorage.getItem(KEY+':view');if(['stairs','lifts'].includes(savedMode))mode=savedMode;}catch{}
   render();storageNotice();synchronize();
-  setInterval(()=>{if(navigator.onLine&&githubToken)synchronize();},30000);
+  setInterval(()=>{if(navigator.onLine)synchronize();},5000);
   window.addEventListener('online',synchronize);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')synchronize();});
 })();
