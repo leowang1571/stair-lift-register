@@ -115,3 +115,22 @@ test('read-only links cannot delete or restore records',async()=>{
  }
  assert.equal((await readRegister(db,project.accountId)).data.lifts.length,16);
 });
+
+test('GitHub Pages can preflight, create, read and edit existing shared projects without account cookies',async()=>{
+ const db=database(), origin='https://leowang1571.github.io', base='https://stair-floor-register-cw26.leo1571.chatgpt.site';
+ for(const handler of [registerRequest,projectsRequest]){
+  const response=await handler(new Request(base+'/api/register',{method:'OPTIONS',headers:{origin,'access-control-request-method':'POST','access-control-request-headers':'authorization,content-type'}}),db);
+  assert.equal(response.status,204);assert.equal(response.headers.get('access-control-allow-origin'),origin);assert.match(response.headers.get('access-control-allow-headers'),/Authorization/);assert.equal(response.headers.get('access-control-allow-credentials'),null);
+ }
+ const created=await projectsRequest(new Request(base+'/api/projects',{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify({name:'Pages 同步測試',data:defaults()})}),db);
+ assert.equal(created.status,201);assert.equal(created.headers.get('access-control-allow-origin'),origin);const project=await created.json();
+ const request=(key,value,source=origin)=>new Request(base+'/api/register',{method:value?'POST':'GET',headers:{origin:source,authorization:'Bearer '+project.project.id+'.'+key,...(value?{'content-type':'application/json'}:{})},...(value?{body:JSON.stringify(value)}:{})});
+ const value={action:'operations',operations:[patch('pages-floor-1','stairs',1,{f1:true,f2:true,tower:'T5'})]};
+ assert.equal((await registerRequest(request(project.editKey,value),db)).status,200);
+ const sameSite=await registerRequest(request(project.editKey,null,base),db);assert.equal((await sameSite.json()).data.stairs[0].f2,true);
+ const viewer=await registerRequest(request(project.viewKey,value),db);assert.equal(viewer.status,403);assert.equal(viewer.headers.get('access-control-allow-origin'),origin);
+ const legacy=await registerRequest(new Request(base+'/api/register',{headers:{origin}}),db,'account-a');assert.equal(legacy.status,401);assert.equal(legacy.headers.get('access-control-allow-origin'),origin);
+ for(const handler of [registerRequest,projectsRequest]){
+  const denied=await handler(new Request(base+'/api/register',{method:'OPTIONS',headers:{origin:'https://other.example'}}),db);assert.equal(denied.status,403);assert.equal(denied.headers.get('access-control-allow-origin'),null);
+ }
+});

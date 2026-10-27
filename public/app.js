@@ -2,6 +2,9 @@ import {validItems as valid, normalizeState as normalize, snapshotState as snaps
 (()=>{
   'use strict';
   const KEY='stair-floor-register:v2';
+  const apiOrigin=document.querySelector('meta[name="register-api-origin"]')?.content||location.origin;
+  const apiUrl=path=>new URL(path,apiOrigin).href;
+  const apiCredentials=apiOrigin===location.origin?'same-origin':'omit';
   const LEGACY_KEY='stair-floor-register:v1';
   const $=id=>document.getElementById(id);
   const list=$('stairs');
@@ -95,7 +98,7 @@ import {validItems as valid, normalizeState as normalize, snapshotState as snaps
   async function api(body){
     const headers=projectSession?{Authorization:'Bearer '+projectSession.id+'.'+projectSession.key}:{};
     if(body)headers['Content-Type']='application/json';
-    const response=await fetch('/api/register',{method:body?'POST':'GET',headers,credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(12000),...(body?{body:JSON.stringify(body)}:{})});
+    const response=await fetch(apiUrl('/api/register'),{method:body?'POST':'GET',headers,credentials:apiCredentials,cache:'no-store',signal:AbortSignal.timeout(12000),...(body?{body:JSON.stringify(body)}:{})});
     if(response.status===401){const error=new Error('project_required');error.auth=true;throw error;}
     if(response.status===403){editMode=false;cloud.role='view';render();const error=new Error('read_only');error.auth=true;throw error;}
     if(!response.ok){const detail=await response.json().catch(()=>({}));const error=new Error('sync_failed');error.code=detail.error;error.opId=detail.opId;throw error;}
@@ -357,7 +360,7 @@ import {validItems as valid, normalizeState as normalize, snapshotState as snaps
     finally{cloud.busy=false;$('project-dialog').querySelectorAll('button[type="submit"],#open-saved-project').forEach(b=>b.disabled=false);storageNotice();}
   }
   async function openProject(session){
-    const response=await fetch('/api/register',{headers:{Authorization:'Bearer '+session.id+'.'+session.key},cache:'no-store',credentials:'same-origin',signal:AbortSignal.timeout(12000)});
+    const response=await fetch(apiUrl('/api/register'),{headers:{Authorization:'Bearer '+session.id+'.'+session.key},cache:'no-store',credentials:apiCredentials,signal:AbortSignal.timeout(12000)});
     if(!response.ok)throw new Error('invalid_link');const remote=await response.json();
     if(!remote.initialized||!remote.project||!valid(remote.data?.stairs)||!valid(remote.data?.lifts))throw new Error('invalid_link');
     adoptProject(session,remote);
@@ -369,7 +372,7 @@ import {validItems as valid, normalizeState as normalize, snapshotState as snaps
       let data=$('project-seed').checked?snapshot(state):snapshot(normalize({stairs:fresh(),lifts:fresh()}));
       const file=$('project-backup').files[0];
       if(file){if(file.size>250000)throw new Error('invalid_backup');const backup=parse(await file.text());const value=backup?.data||backup;if(!value||!valid(value.stairs)||!valid(value.lifts))throw new Error('invalid_backup');data=snapshot(normalize(value));}
-      const response=await fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('project-name').value,data}),signal:AbortSignal.timeout(15000)});
+      const response=await fetch(apiUrl('/api/projects'),{method:'POST',credentials:apiCredentials,headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('project-name').value,data}),signal:AbortSignal.timeout(15000)});
       if(!response.ok)throw new Error('create_failed');const remote=await response.json();adoptProject({id:remote.project.id,key:remote.editKey,viewKey:remote.viewKey},remote);
     });
   });
@@ -377,7 +380,7 @@ import {validItems as valid, normalizeState as normalize, snapshotState as snaps
   $('open-saved-project').addEventListener('click',()=>{const session=storedProjects()[$('saved-projects').value];if(session)projectAction(()=>openProject(session));});
   function shareLink(role){
     const key=role==='edit'?projectSession.key:(projectSession.viewKey||projectSession.key);
-    return location.origin+'/#'+new URLSearchParams({project:projectSession.id,key}).toString();
+    return new URL('./',location.href).href+'#'+new URLSearchParams({project:projectSession.id,key}).toString();
   }
   $('project-share').addEventListener('click',()=>{
     if(!projectSession||!cloud.project)return;

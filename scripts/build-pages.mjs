@@ -1,0 +1,11 @@
+import {mkdir,readFile,writeFile,copyFile} from 'node:fs/promises';
+const root=new URL('../',import.meta.url);
+const out=new URL('docs/',root);
+await mkdir(out,{recursive:true});
+let html=await readFile(new URL('register.html',root),'utf8');
+html=html.replace('<meta name="register-api-origin" content="">','<meta name="register-api-origin" content="https://stair-floor-register-cw26.leo1571.chatgpt.site">');
+if (!html.includes('src="./app.js?v=7"')) throw new Error('網頁資源須使用相對路徑。');
+await writeFile(new URL('index.html',out),html);
+for(const file of ['app.js','register-model.mjs']) await copyFile(new URL('public/'+file,root),new URL(file,out));
+await writeFile(new URL('.nojekyll',out),'');
+console.log('GitHub Pages 網頁已建立於 docs/，連接現有同步資料庫。');

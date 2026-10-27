@@ -13,7 +13,8 @@
     "db:create": "wrangler d1 create stair-lift-register",
     "db:migrate": "wrangler d1 migrations apply DB --remote",
     "deploy": "npm run build && wrangler deploy",
-    "configure": "node scripts/configure-d1.mjs"
+    "configure": "node scripts/configure-d1.mjs",
+    "build:pages": "node scripts/build-pages.mjs"
   },
   "devDependencies": {
     "wrangler": "4.92.0"

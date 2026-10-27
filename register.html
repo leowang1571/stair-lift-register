@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="register-api-origin" content="">
+  <meta name="referrer" content="no-referrer">
   <meta name="theme-color" content="#f3f6f7">
   <meta name="description" content="記錄樓梯與 Lift 的通達樓層、大樓 Lift / 平台 Lift 分類及消防梯標記。">
   <title>樓梯與 Lift 登記</title>
@@ -65,6 +67,6 @@
   <dialog class="settings-dialog" id="delete-dialog" aria-labelledby="delete-title"><div class="dialog-head"><h2 id="delete-title">確認刪除</h2><button type="button" class="close" data-close="delete-dialog" aria-label="關閉刪除確認">×</button></div><p id="delete-description" class="dialog-note"></p><div class="dialog-actions"><button type="button" class="cancel" data-close="delete-dialog">取消</button><button type="button" class="danger-confirm" id="confirm-delete">確認刪除</button></div></dialog>
   <dialog class="settings-dialog" id="trash-dialog" aria-labelledby="trash-title"><div class="dialog-head"><h2 id="trash-title">已刪除的記錄</h2><button type="button" class="close" data-close="trash-dialog" aria-label="關閉已刪除記錄">×</button></div><p class="dialog-note" id="trash-note">編號未被使用時，可恢復原有記錄；不會覆蓋現有記錄。</p><div class="project-body" id="trash-list"></div></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="/app.js?v=6"></script>
+  <script type="module" src="./app.js?v=7"></script>
 </body>
 </html>

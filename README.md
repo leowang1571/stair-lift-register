@@ -1,6 +1,8 @@
 # 樓梯與 Lift 登記
 
-繁體中文的樓梯及 Lift 登記工具。程式由 GitHub 管理，網站及同步資料庫部署至自己的 Cloudflare Workers + D1；使用者不需要登入 ChatGPT 或 GitHub。
+使用 GitHub Pages 開啟網頁，連接現有網站的同步 API 及資料庫。使用者不需要登入 ChatGPT 或 GitHub，也不需要建立 Cloudflare 帳戶。
+
+網站網址：`https://leowang1571.github.io/stair-lift-register/`（啟用 Pages 後生效）。
 
 ## 現有功能
 
@@ -14,72 +16,48 @@
 - 建立及加入共用項目、唯讀和編輯分享連結、跨裝置同步。
 - 離線暫存及重連補交、JSON 匯出和匯入、座別及 Lift 分類篩選。
 
-## 從 GitHub 部署
+## 啟用 GitHub Pages（一次設定）
 
-GitHub Pages 只有靜態託管，不能單獨支援本工具的同步 API。此儲存庫包含完整 Workers 後端，不需拆開網站和 API。
+1. 開啟儲存庫 **Settings → Pages**。
+2. **Build and deployment → Source** 選 **Deploy from a branch**。
+3. **Branch** 選 **main**，資料夾選 **/docs**，按 **Save**。
+4. 等候 GitHub 的 Pages 部署完成，再開啟上方網站網址。
 
-1. 準備自己的 Cloudflare 帳戶，在電腦安裝 Node.js 24。
-2. 下載或 clone 此儲存庫，執行 `npm ci`。
-3. 執行 `npx wrangler login`，再執行 `npm run db:create`。
-4. 複製建立 D1 後顯示的 `database_id`。
-5. 在 GitHub 儲存庫 **Settings → Secrets and variables → Actions** 加入以下 Secrets：
+GitHub Free 帳戶需要公開儲存庫才能使用 Pages。若私人儲存庫顯示升級提示，可在 **Settings → General → Danger Zone → Change repository visibility** 改為 Public。這會公開程式碼；本儲存庫沒有登記資料、項目密鑰或部署憑證。GitHub Pro 等支援私人儲存庫的方案可保留 Private。
 
-| 名稱 | 內容 |
-|---|---|
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare 帳戶 ID |
-| `CLOUDFLARE_D1_DATABASE_ID` | 第 4 步的資料庫 ID |
-| `CLOUDFLARE_API_TOKEN` | 可部署 Workers 及存取此帳戶 D1 的 API Token |
+## 現有記錄及分享
 
-API Token 需要帳戶層級 Workers Scripts Edit、D1 Edit；使用 workers.dev 時也需 Workers Subdomain Edit。只授權要部署的帳戶。不需要將密鑰提交至程式碼。
+新舊網頁連接同一個資料庫，毋須搬移已同步的項目或重建項目。
 
-6. 到 **Actions → 部署網站 → Run workflow**。流程會測試、套用資料庫遷移，再部署。
-7. 成功後從執行記錄取得 `https://…workers.dev` 網址。可在 Cloudflare 為 Worker 綁定自己的域名。
+1. 在原網站有資料的裝置按「分享 → 複製編輯連結」。
+2. 在 GitHub Pages 按「建立 / 加入項目」，將舊分享連結貼入「貼上項目分享連結」，按「加入項目」。
+3. 項目載入後，兩個網站可查看及修改同一份記錄。新網站按分享會產生包含 `/stair-lift-register/` 的 GitHub Pages 連結。
+4. 只供查看可使用「複製唯讀連結」；自用跨裝置請選「複製編輯連結」。
 
-「驗證程式」會在 push / PR 自動執行；「部署網站」採手動執行，設定完成後可重複使用。一般使用者只需要新網站網址或項目分享連結。
+瀏覽器的本機記錄按網站網址分開保存。若原網站仍顯示「僅存此裝置」，請先在原網站建立共用項目並帶入目前記錄，或匯出 JSON 再在新網站匯入。不要在新網站誤建空白項目來取代舊項目。
 
-### 電腦直接部署
+請用「分享」按鈕複製連結；載入後網址列會隱藏項目資訊，直接複製網址列可能只得到首頁。持有編輯連結的人可以修改項目。
 
-將 `wrangler.jsonc` 的 `database_id` 改為自己的 D1 ID，然後：
+## 網站及同步的關係
 
-```sh
-npm ci
-npm test
-npx wrangler login
-npm run db:migrate
-npm run deploy
-```
+GitHub Pages 提供網頁；現有 `stair-floor-register-cw26.leo1571.chatgpt.site` 提供同步。網頁不經 ChatGPT 登入；同步需要裝置能連接這個 API 網址。若網絡無法連接後端，修改會暫存在該瀏覽器，恢復連線後再同步。GitHub Pages 不會令後端變成 GitHub 服務。
 
-亦可透過 `CLOUDFLARE_D1_DATABASE_ID` 環境變數配合 `npm run configure` 寫入設定。
+後端只允許指定的 `https://leowang1571.github.io` 來源跨網站存取，仍需原有項目密鑰。唯讀連結不能寫入；跨網站請求不使用 ChatGPT 登入 Cookie。
 
-## 搬移原有記錄
+## 修改及驗證
 
-程式搬移不會自動搬走舊網站的雲端資料。舊網站繼續保留，完成核對才轉用新網站。
-
-1. 在原裝置開啟舊網站的項目，等候「已同步到雲端」。
-2. 按「匯出 JSON 備份」。每個項目分別匯出，包括已刪除記錄。
-3. 在新網站按「建立 / 加入項目」，輸入名稱並選擇該 JSON，再按「建立並同步」。
-4. 核對樓梯、Lift、勾選、座別、分類、消防梯和已刪除記錄。
-5. 按「分享 → 複製編輯連結」，在第二部裝置測試相同項目及雙向修改。
-6. 改發新網站產生的唯讀 / 編輯連結。舊項目連結不會自動指向新網站。
-
-JSON 匯入會建立新項目與新密鑰。若要保留原項目 ID 和密鑰，需另外進行完整 D1 資料庫搬移；本包不包含任何生產資料或密鑰。ChatGPT 舊版帳戶記錄須先在舊網站匯出，獨立網站不提供 ChatGPT 帳戶登入入口。
-
-## 項目分享操作
-
-第一次在有資料的裝置按「建立 / 加入項目」，保留「帶入目前畫面的記錄」，建立後按「分享」。自用跨裝置選「複製編輯連結」；只供查看選「複製唯讀連結」。新裝置直接打開完整分享連結即可。
-
-請保存按分享按鈕取得的完整連結。載入後網址列會隱藏項目資訊，直接複製網址列可能只有首頁。持有編輯連結的人可以修改該項目。
-
-## 本機驗證
+Node.js 24：
 
 ```sh
 npm ci
 npm test
-npm run build
-npx wrangler d1 migrations apply DB --local
-npx wrangler dev
+npm run build:pages
 ```
 
-測試使用 Node.js 內建 SQLite，涵蓋雙樓層、合併同步、項目隔離、唯讀權限、重試、T4 相容、編號重用及舊版本保護。
+修改 `register.html`、`public/app.js` 或 `public/register-model.mjs` 後，執行 `npm run build:pages`，將程式和 `docs/` 一起提交。GitHub Pages 會從 main 的 docs 發布。驗證流程會檢查 tests 及 docs 是否跟原始碼一致。
 
-網站訪問不經 ChatGPT 域名；香港實際速度仍取決於網絡、域名和 Cloudflare 服務狀況。
+`lib/` 是後端原始碼的副本。修改 API 行為需要同步更新現有後端網站，僅修改 GitHub 儲存庫不會部署現有同步後端。
+
+## 可選的完全獨立部署
+
+`standalone/worker.mjs`、D1 遷移檔和 `部署網站` Actions 流程保留，供將來自建 Cloudflare Workers + D1 使用；目前 GitHub Pages 路線不需要執行它。此選項需要自己建立 D1，設定 `CLOUDFLARE_ACCOUNT_ID`、`CLOUDFLARE_D1_DATABASE_ID`、`CLOUDFLARE_API_TOKEN` Secrets，並以 JSON 或完整資料庫搬移既有資料。
