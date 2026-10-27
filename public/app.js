@@ -390,6 +390,7 @@ import {validItems as valid, normalizeState as normalize, snapshotState as snaps
   for(const role of ['view','edit'])$('copy-'+role).addEventListener('click',async()=>{
     if(role==='edit'&&cloud.role!=='edit')return;
     const link=shareLink(role);
+    $('manual-share').value=link;$('manual-share').hidden=false;
     try{await navigator.clipboard.writeText(link);$('share-feedback').textContent='已複製'+(role==='edit'?'編輯':'唯讀')+'連結。';}
     catch{$('manual-share').value=link;$('manual-share').hidden=false;$('manual-share').select();$('share-feedback').textContent='請複製下方連結。';}
   });
