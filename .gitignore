@@ -1,0 +1,8 @@
+node_modules/
+.portable/
+.wrangler/
+.env*
+.dev.vars*
+*.sql.backup
+backups/
+.DS_Store
