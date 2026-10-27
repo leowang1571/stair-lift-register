@@ -1,63 +1,65 @@
-# 樓梯與 Lift 登記
+# 樓梯與 Lift 登記（只用 GitHub）
 
-使用 GitHub Pages 開啟網頁，連接現有網站的同步 API 及資料庫。使用者不需要登入 ChatGPT 或 GitHub，也不需要建立 Cloudflare 帳戶。
+網頁及資料均使用 GitHub。網站：**https://leowang1571.github.io/stair-lift-register/**
 
-網站網址：`https://leowang1571.github.io/stair-lift-register/`（啟用 Pages 後生效）。
+- GitHub Pages 提供網頁；瀏覽器直接呼叫 GitHub REST API 讀寫私人資料儲存庫。
+- 不連接 ChatGPT Sites、Cloudflare、Supabase 或其他同步服務。
+- 讀寫需要 GitHub 授權；此模式不提供匿名多人修改。
 
-## 現有功能
+## 保留功能
 
-- 樓梯 ST-01 至 ST-16、Lift LT1 至 LT16，兩類分開管理。
-- 通 1/F 和通 2/F 可以同時勾選。
-- 按「編輯」才可修改，減少誤觸。
-- 座別 T1、T2、T3、T5；舊 T4 自動轉為 T5。
-- 大樓 Lift、平台 Lift，獨立消防梯標記；點擊或長按編號開啟設定。
-- 新增使用目前最大編號加一；空清單從 1 開始。刪除最高編號後，新增編號會跟隨更新。
-- 刪除、已刪除記錄及還原；重用編號建立空白記錄，保留舊版本。同號現有記錄不會被還原操作覆蓋。
-- 建立及加入共用項目、唯讀和編輯分享連結、跨裝置同步。
-- 離線暫存及重連補交、JSON 匯出和匯入、座別及 Lift 分類篩選。
+樓梯 ST-01 起、Lift LT1 起；1/F 和 2/F 可同時勾選；編輯防誤觸；T1、T2、T3、T5 座別；大樓 Lift、平台 Lift 及消防梯；篩選、新增、刪除、還原、JSON 備份及匯入。
 
-## 啟用 GitHub Pages（一次設定）
+新增跟隨目前最高編號加一，空清單從 1 開始；重用已刪除編號建立空白記錄，保留舊版本；還原不覆蓋現有同號記錄。
 
-1. 開啟儲存庫 **Settings → Pages**。
-2. **Build and deployment → Source** 選 **Deploy from a branch**。
-3. **Branch** 選 **main**，資料夾選 **/docs**，按 **Save**。
-4. 等候 GitHub 的 Pages 部署完成，再開啟上方網站網址。
+每次儲存先讀取最新 GitHub 檔案，再按操作合併並以檔案 SHA 寫入；遇到同時修改會重新讀取後重試，避免整份舊資料覆蓋新資料。修改會合批提交，顯示中的網頁約每 30 秒讀取一次；也可按「立即同步」。未同步修改會保留在該瀏覽器的本機快取。Token 過期或離線時不會顯示已同步。
 
-GitHub Free 帳戶需要公開儲存庫才能使用 Pages。若私人儲存庫顯示升級提示，可在 **Settings → General → Danger Zone → Change repository visibility** 改為 Public。這會公開程式碼；本儲存庫沒有登記資料、項目密鑰或部署憑證。GitHub Pro 等支援私人儲存庫的方案可保留 Private。
+## 第一次使用
 
-## 現有記錄及分享
+1. 私人資料儲存庫預設為 `leowang1571/stair-lift-register-data`，與公開的網頁程式儲存庫分開。其他使用者可建立自己的私人儲存庫，勾選 Add README，並在建立項目時填寫自己的 `擁有人/名稱`。
+2. GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token。
+3. Repository access 選 **Only select repositories**，只選私人資料儲存庫；Repository permissions 的 **Contents** 選 **Read and write**。Token 設定合適的到期日。
+4. 在網站按 **GitHub 設定**，貼入 Token，按 **套用授權**。Token 只放在目前頁面的記憶體，重新載入後需再輸入；不存入 localStorage、不寫入儲存庫，也不包含在分享連結內。
+5. 按 **建立 / 加入項目**，輸入私人資料儲存庫及項目名稱，選擇帶入目前記錄或 JSON 備份，按 **建立並同步**。
+6. 顯示 **已同步到 GitHub** 才代表已完成寫入。
 
-新舊網頁連接同一個資料庫，毋須搬移已同步的項目或重建項目。
+請勿把 Token 發到對話、提交程式碼或分享給他人。Token 僅傳送至 `https://api.github.com`。GitHub Token 不能只限制到一個 JSON 檔案，因此請選獨立的私人資料儲存庫，避免授權其他專案。
 
-1. 在原網站有資料的裝置按「分享 → 複製編輯連結」。
-2. 在 GitHub Pages 按「建立 / 加入項目」，將舊分享連結貼入「貼上項目分享連結」，按「加入項目」。
-3. 項目載入後，兩個網站可查看及修改同一份記錄。新網站按分享會產生包含 `/stair-lift-register/` 的 GitHub Pages 連結。
-4. 只供查看可使用「複製唯讀連結」；自用跨裝置請選「複製編輯連結」。
+## 跨裝置及協作
 
-瀏覽器的本機記錄按網站網址分開保存。若原網站仍顯示「僅存此裝置」，請先在原網站建立共用項目並帶入目前記錄，或匯出 JSON 再在新網站匯入。不要在新網站誤建空白項目來取代舊項目。
+1. 原裝置按「分享 → 複製編輯連結」。
+2. 新裝置開啟連結，按 GitHub 設定輸入自己的有效 Token。
+3. 使用同一個 GitHub 帳戶的多部裝置可以授權同一個私人資料儲存庫；其他協作者必須先在 GitHub 獲授權存取該私人儲存庫，並使用自己的 Token。
 
-請用「分享」按鈕複製連結；載入後網址列會隱藏項目資訊，直接複製網址列可能只得到首頁。持有編輯連結的人可以修改項目。
+分享連結只包含儲存庫、分支、項目檔案路徑和本頁開啟模式。唯讀連結鎖定頁面編輯，真正的權限仍由 GitHub 控制：唯讀使用者須使用 Contents **Read-only** Token；有寫入權限的人仍能在 GitHub 直接修改檔案。
 
-## 網站及同步的關係
+每個項目儲存於私人儲存庫的 `projects/<隨機ID>.json`。檔案含項目名稱、記錄、已刪除記錄、修訂編號和已處理操作 ID，不含 Token。GitHub 提交歷史可保留舊版資料。
 
-GitHub Pages 提供網頁；現有 `stair-floor-register-cw26.leo1571.chatgpt.site` 提供同步。網頁不經 ChatGPT 登入；同步需要裝置能連接這個 API 網址。若網絡無法連接後端，修改會暫存在該瀏覽器，恢復連線後再同步。GitHub Pages 不會令後端變成 GitHub 服務。
+## 搬移舊同步項目
 
-後端只允許指定的 `https://leowang1571.github.io` 來源跨網站存取，仍需原有項目密鑰。唯讀連結不能寫入；跨網站請求不使用 ChatGPT 登入 Cookie。
+這個版本不會呼叫舊同步服務，舊的密鑰分享連結不能直接加入。
 
-## 修改及驗證
+1. 在原網站開啟原項目，等待同步完成，按「匯出 JSON 備份」。每個項目分別匯出。
+2. 在新版建立 GitHub 項目時選擇 JSON 備份，按「建立並同步」。
+3. 核對樓梯、Lift、座別、樓層、分類、消防梯及已刪除記錄，再分享新的 GitHub 項目連結。
+
+同一瀏覽器若有上一版本的活動項目快取，首次更新會保留其快取和待同步修改供帶入新項目；這不能代替從舊網站匯出最新雲端記錄。原同步網站和資料庫保留供你自行備份，這份網頁不再連接它。
+
+## 限制
+
+GitHub 是檔案及版本儲存服務，無法提供原先匿名密鑰分享的操作方式。每次同步寫入會產生提交；有 API 請求及寫入頻率限制。遇到限流時會暫停重試，修改仍留在本機。多人同時修改同一欄位，以最後成功提交的操作為準。
+
+操作去重歷史隨使用量增加；當單檔接近 API 同步容量時，網站會保留本機修改並提示匯出備份，建立新項目，不會自動刪除歷史。
+
+## 開發與發布
 
 Node.js 24：
 
 ```sh
-npm ci
 npm test
-npm run build:pages
+npm run build
 ```
 
-修改 `register.html`、`public/app.js` 或 `public/register-model.mjs` 後，執行 `npm run build:pages`，將程式和 `docs/` 一起提交。GitHub Pages 會從 main 的 docs 發布。驗證流程會檢查 tests 及 docs 是否跟原始碼一致。
+不需安裝依賴。修改 `register.html`、`public/app.js`、`public/github-storage.mjs` 或 `public/register-model.mjs` 後，執行 build 並將原始碼及 `docs/` 一起提交。
 
-`lib/` 是後端原始碼的副本。修改 API 行為需要同步更新現有後端網站，僅修改 GitHub 儲存庫不會部署現有同步後端。
-
-## 可選的完全獨立部署
-
-`standalone/worker.mjs`、D1 遷移檔和 `部署網站` Actions 流程保留，供將來自建 Cloudflare Workers + D1 使用；目前 GitHub Pages 路線不需要執行它。此選項需要自己建立 D1，設定 `CLOUDFLARE_ACCOUNT_ID`、`CLOUDFLARE_D1_DATABASE_ID`、`CLOUDFLARE_API_TOKEN` Secrets，並以 JSON 或完整資料庫搬移既有資料。
+GitHub Pages 設定為 **Deploy from a branch → main → /docs**。驗證流程會檢查合併、SHA 衝突重試、去重、權限、編號重用、限流及產物一致性。

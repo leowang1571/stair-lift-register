@@ -6,3 +6,5 @@ node_modules/
 *.sql.backup
 backups/
 .DS_Store
+
+/.openai/
