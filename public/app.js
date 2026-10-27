@@ -1,5 +1,5 @@
 import {validItems as valid, normalizeState as normalize, snapshotState as snapshot, applyLocalOperation, nextGeneration, TOWERS as towers} from './register-model.mjs?v=6';
-import {GitHubStore, projectSession as githubSession, parseProjectLink, makeProjectLink} from './github-storage.mjs?v=1';
+import {GitHubStore, projectSession as githubSession, parseProjectLink, makeProjectLink} from './github-storage.mjs?v=2';
 (()=>{
   'use strict';
   const KEY='stair-floor-register:v2';
@@ -369,6 +369,14 @@ import {GitHubStore, projectSession as githubSession, parseProjectLink, makeProj
     $('github-token').value='';$('github-dialog').close();storageNotice();synchronize();
   });
   $('github-disconnect').addEventListener('click',()=>{githubToken='';$('github-token').value='';cloud.authenticated=false;cloud.loginRequired=true;$('github-feedback').textContent='已清除此頁面的授權，未同步修改仍保留在本機。';storageNotice();});
+  let githubProjects=[];
+  $('load-github-projects').addEventListener('click',()=>projectAction(async()=>{
+    githubProjects=await github.list($('github-repo').value.trim());
+    $('github-project-list').replaceChildren(...githubProjects.map((item,index)=>new Option(item.name,String(index))));
+    $('github-projects-wrap').hidden=!githubProjects.length;
+    if(!githubProjects.length)$('project-error').textContent='這個儲存庫尚未有項目，可在上方建立。';
+  }));
+  $('open-github-project').addEventListener('click',()=>{const item=githubProjects[Number($('github-project-list').value)];if(item)projectAction(()=>openProject(item.session));});
   $('project-manage').addEventListener('click',()=>{$('project-error').textContent='';refreshProjectList();$('project-dialog').showModal();});
   for(const button of document.querySelectorAll('[data-close]'))button.addEventListener('click',()=>$(button.dataset.close).close());
   $('create-project-form').addEventListener('submit',event=>{

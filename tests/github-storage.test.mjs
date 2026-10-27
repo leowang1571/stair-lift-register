@@ -57,3 +57,14 @@ test('rate-limit responses pause retries without losing pending operation input'
  let count=0;const store=new GitHubStore({token:()=> 'test-only-token',request:async()=>{count++;return new Response('{}',{status:403,headers:{'x-ratelimit-remaining':'0','retry-after':'60'}});}});const pending=[op('pending',{f1:true})];
  await assert.rejects(store.apply(session(),pending),e=>e.code==='rate_limit');await assert.rejects(store.apply(session(),pending),e=>e.code==='rate_limit');assert.equal(count,1);assert.equal(pending[0].fields.f1,true);
 });
+
+test('existing private projects can be listed by their Chinese names without an external index',async()=>{
+ const s=session(),doc=document();let count=0;
+ const store=new GitHubStore({token:()=> 'test-only-token',request:async(url,options)=>{
+  assert.equal(options.headers.Authorization,'Bearer test-only-token');count++;
+  if(!url.includes('/contents/'))return Response.json({private:true,default_branch:'main'});
+  if(url.includes('/contents/projects?'))return Response.json([{type:'file',path:s.path},{type:'file',path:'projects/README.md'},{type:'dir',path:'projects/other'}]);
+  return Response.json({sha:'sha',encoding:'base64',content:b64(doc)});
+ }});
+ const listed=await store.list(s.repo);assert.equal(listed.length,1);assert.equal(listed[0].name,doc.name);assert.equal(listed[0].session.path,s.path);assert.equal(count,3);
+});

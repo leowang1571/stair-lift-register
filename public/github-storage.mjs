@@ -56,6 +56,17 @@ export class GitHubStore {
     const content=encode(doc);if(content.length>950000)throw new GitHubError('項目歷史已接近 GitHub 單檔同步容量，請匯出備份並建立新項目。');
     return this.call(this.endpoint(s),{method:'PUT',body:JSON.stringify({message:'更新樓梯與 Lift 登記',branch:s.branch,content,...(sha?{sha}:{})})});
   }
+  async list(repo) {
+    projectSession(repo,'main','projects/'+'0'.repeat(32)+'.json');
+    const meta=await this.call('/repos/'+repo.split('/').map(encodeURIComponent).join('/'));
+    if(!meta.private)throw new GitHubError('請使用私人資料儲存庫。');
+    let files;try{files=await this.call('/repos/'+repo.split('/').map(encodeURIComponent).join('/')+'/contents/projects?ref='+encodeURIComponent(meta.default_branch||'main'));}catch(error){if(error.status===404)return [];throw error;}
+    if(!Array.isArray(files))throw new GitHubError('項目資料夾格式不正確。');
+    const sessions=files.filter(file=>file.type==='file'&&/^projects\/[a-f0-9]{32}\.json$/.test(file.path)).slice(0,50).map(file=>projectSession(repo,meta.default_branch||'main',file.path));
+    const result=[];
+    for(let i=0;i<sessions.length;i+=5)result.push(...await Promise.all(sessions.slice(i,i+5).map(async session=>({session,name:(await this.read(session)).project.name}))));
+    return result;
+  }
   async create(repo,name,data) {
     projectSession(repo,'main','projects/'+'0'.repeat(32)+'.json');
     const meta=await this.call('/repos/'+repo.split('/').map(encodeURIComponent).join('/'));
