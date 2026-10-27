@@ -1,4 +1,4 @@
-import {mkdir,readFile,writeFile,copyFile} from 'node:fs/promises';
+import {mkdir,readFile,writeFile,copyFile,cp} from 'node:fs/promises';
 const root=new URL('../',import.meta.url),out=new URL('docs/',root);
 await mkdir(out,{recursive:true});
 const html=await readFile(new URL('register.html',root),'utf8');
@@ -6,5 +6,7 @@ if(!html.includes('src="./app.js?v=11"'))throw new Error('網頁資源須使用�
 if(!html.includes('<meta name="register-api-origin" content="https://stair-lift-register-sync.leo-e45.workers.dev">'))throw new Error('尚未設定同步服務網址。');
 await writeFile(new URL('index.html',out),html);
 for(const file of ['app.js','register-model.mjs'])await copyFile(new URL('public/'+file,root),new URL(file,out));
+await copyFile(new URL('public/manifest.webmanifest',root),new URL('manifest.webmanifest',out));
+await cp(new URL('public/icons/',root),new URL('icons/',out),{recursive:true});
 await writeFile(new URL('.nojekyll',out),'');
 console.log('GitHub Pages 網頁已建立，使用 Cloudflare 同步。');
